@@ -115,7 +115,7 @@ instance (KnownNat l, KnownNat h, (l+s+h) ~ s', Padded ps sh sh') =>
 -----------------
 
 class Permutation (is :: [Nat])
-instance (AllElem is (Count 0 is)) => Permutation is
+instance (AllElem is (Count 0 is), AllElem (Count 0 is) is) => Permutation is
 
 type family Count (i :: Nat) (xs :: [Nat]) :: [Nat] where
   Count i '[] = '[]
