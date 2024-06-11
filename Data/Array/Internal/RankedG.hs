@@ -172,7 +172,7 @@ reshape :: forall n n' v a . (HasCallStack,Vector v, VecElem v a, KnownNat n, Kn
            ShapeL -> Array n v a -> Array n' v a
 reshape sh (A sh' t@(T ost oo v))
   | n /= n' = error $ "reshape: size mismatch " ++ show (sh, sh')
-  | length sh /= valueOf @n' = error $ "reshape: rank mismatch " ++ show (length sh, valueOf @n :: Int)
+  | length sh /= valueOf @n' = error $ "reshape: rank mismatch " ++ show (length sh, valueOf @n' :: Int)
   | vLength v == 1 = A sh $ T (map (const 0) sh) 0 v  -- Fast special case for singleton vector
   | Just nst <- simpleReshape ost sh' sh = A sh $ T nst oo v
   | otherwise = A sh $ T st 0 $ toVectorT sh' t
@@ -322,7 +322,7 @@ unravel = rerank @1 scalar
 {-# INLINE window #-}
 window :: forall n n' v a . (Vector v, KnownNat n, KnownNat n') =>
           [Int] -> Array n v a -> Array n' v a
-window aws _ | valueOf @n' /= length aws + valueOf @n = error $ "window: rank mismatch: " ++ show (valueOf @n :: Int, length aws, valueOf @n' :: Int)
+window aws _ | valueOf @n' /= length aws + valueOf @n = error $ "window: rank mismatch: " ++ show (valueOf @n' :: Int, length aws, valueOf @n :: Int)
 window aws (A ash (T ss o v)) = A (win aws ash) (T (ss' ++ ss) o v)
   where ss' = zipWith const ss aws
         win (w:ws) (s:sh) | w <= s = s - w + 1 : win ws sh
