@@ -115,7 +115,7 @@ type role Array nominal
 newtype Array a = A { unA :: G.Array V.Vector a }
   deriving (Pretty, Generic, Data)
 
-instance NFData a => NFData (Array a)
+instance NFData (Array a)
 
 instance (Show a, Unbox a) => Show (Array a) where
   showsPrec p = showsPrec p . unA
