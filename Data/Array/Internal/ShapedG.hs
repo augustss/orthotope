@@ -121,7 +121,7 @@ rank _ = valueOf @(Rank sh)
 {-# INLINE index #-}
 index :: forall s sh v a . (HasCallStack, Vector v, KnownNat s) =>
          Array (s:sh) v a -> Int -> Array sh v a
-index (A t) i | i < 0 || i >= s = error $ "index: out of bounds " ++ show i ++ " >= " ++ show s
+index (A t) i | i < 0 || i >= s = error $ "index: out of bounds: " ++ show i ++ " >= " ++ show s
               | otherwise = A $ indexT t i
   where s = valueOf @s
 
@@ -155,7 +155,7 @@ fromList vs | n /= l = error $ "fromList: size mismatch " ++ show (n, l)
 {-# INLINE fromVector #-}
 fromVector :: forall sh v a . (HasCallStack, Vector v, VecElem v a, Shape sh) =>
               v a -> Array sh v a
-fromVector v | n /= l = error $ "fromVector: size mismatch" ++ show (n, l)
+fromVector v | n /= l = error $ "fromVector: size mismatch " ++ show (n, l)
              | otherwise = A $ T st 0 v
   where n : st = getStridesT ss
         l = vLength v

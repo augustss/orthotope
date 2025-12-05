@@ -125,7 +125,7 @@ toVector (A sh t) = toVectorT sh t
 -- O(n) time.
 {-# INLINE fromList #-}
 fromList :: (HasCallStack, Vector v, VecElem v a) => ShapeL -> [a] -> Array v a
-fromList ss vs | n /= l = error $ "fromList: size mismatch" ++ show (n, l)
+fromList ss vs | n /= l = error $ "fromList: size mismatch " ++ show (n, l)
                | otherwise = A ss $ T st 0 $ vFromList vs
   where n : st = getStridesT ss
         l = length vs
@@ -135,7 +135,7 @@ fromList ss vs | n /= l = error $ "fromList: size mismatch" ++ show (n, l)
 -- O(1) time.
 {-# INLINE fromVector #-}
 fromVector :: (HasCallStack, Vector v, VecElem v a) => ShapeL -> v a -> Array v a
-fromVector ss v | n /= l = error $ "fromList: size mismatch" ++ show (n, l)
+fromVector ss v | n /= l = error $ "fromList: size mismatch " ++ show (n, l)
                 | otherwise = A ss $ T st 0 v
   where n : st = getStridesT ss
         l = vLength v
@@ -211,7 +211,7 @@ mapA f (A s t) = A s (mapT s f t)
 zipWithA :: (HasCallStack, Vector v, VecElem v a, VecElem v b, VecElem v c) =>
             (a -> b -> c) -> Array v a -> Array v b -> Array v c
 zipWithA f (A s t) (A s' t') | s == s' = A s (zipWithT s f t t')
-                             | otherwise = error $ "zipWithA: shape mismatch: " ++ show (s, s')
+                             | otherwise = error $ "zipWithA: shape mismatch " ++ show (s, s')
 
 -- | Map over the array elements.
 -- O(n) time.
@@ -219,7 +219,7 @@ zipWithA f (A s t) (A s' t') | s == s' = A s (zipWithT s f t t')
 zipWith3A :: (HasCallStack, Vector v, VecElem v a, VecElem v b, VecElem v c, VecElem v d) =>
              (a -> b -> c -> d) -> Array v a -> Array v b -> Array v c -> Array v d
 zipWith3A f (A s t) (A s' t') (A s'' t'') | s == s' && s == s'' = A s (zipWith3T s f t t' t'')
-                                          | otherwise = error $ "zipWith3A: shape mismatch: " ++ show (s, s', s'')
+                                          | otherwise = error $ "zipWith3A: shape mismatch " ++ show (s, s', s'')
 
 -- | Map over the array elements.
 -- O(n) time.
@@ -227,7 +227,7 @@ zipWith3A f (A s t) (A s' t') (A s'' t'') | s == s' && s == s'' = A s (zipWith3T
 zipWith4A :: (HasCallStack, Vector v, VecElem v a, VecElem v b, VecElem v c, VecElem v d, VecElem v e) =>
              (a -> b -> c -> d -> e) -> Array v a -> Array v b -> Array v c -> Array v d -> Array v e
 zipWith4A f (A s t) (A s' t') (A s'' t'') (A s''' t''') | s == s' && s == s'' && s == s''' = A s (zipWith4T s f t t' t'' t''')
-                                                        | otherwise = error $ "zipWith4A: shape mismatch: " ++ show (s, s', s'', s''')
+                                                        | otherwise = error $ "zipWith4A: shape mismatch " ++ show (s, s', s'', s''')
 
 -- | Map over the array elements.
 -- O(n) time.
@@ -235,7 +235,7 @@ zipWith4A f (A s t) (A s' t') (A s'' t'') (A s''' t''') | s == s' && s == s'' &&
 zipWith5A :: (HasCallStack, Vector v, VecElem v a, VecElem v b, VecElem v c, VecElem v d, VecElem v e, VecElem v f) =>
              (a -> b -> c -> d -> e -> f) -> Array v a -> Array v b -> Array v c -> Array v d -> Array v e -> Array v f
 zipWith5A f (A s t) (A s' t') (A s'' t'') (A s''' t''') (A s'''' t'''') | s == s' && s == s'' && s == s''' && s == s'''' = A s (zipWith5T s f t t' t'' t''' t'''')
-                                                                        | otherwise = error $ "zipWith5A: shape mismatch: " ++ show (s, s', s'', s''', s'''')
+                                                                        | otherwise = error $ "zipWith5A: shape mismatch " ++ show (s, s', s'', s''', s'''')
 
 -- | Pad each dimension on the low and high side with the given value.
 -- O(n) time.
@@ -317,9 +317,9 @@ window :: (HasCallStack, Vector v) => [Int] -> Array v a -> Array v a
 window aws (A ash (T ss o v)) = A (win aws ash) (T (ss' ++ ss) o v)
   where ss' = zipWith const ss aws
         win (w:ws) (s:sh) | w <= s = s - w + 1 : win ws sh
-                          | otherwise = error $ "window: bad window size : " ++ show (w, s)
+                          | otherwise = error $ "window: bad window size " ++ show (w, s)
         win [] sh = aws ++ sh
-        win _ _ = error $ "window: rank mismatch: " ++ show (aws, ash)
+        win _ _ = error $ "window: rank mismatch " ++ show (aws, ash)
 
 -- | Stride the outermost dimensions.
 -- E.g., if the array shape is @[10,12,8]@ and the strides are
@@ -331,7 +331,7 @@ stride :: (HasCallStack, Vector v) => [Int] -> Array v a -> Array v a
 stride ats (A ash (T ss o v)) = A (str ats ash) (T (zipWith (*) (ats ++ repeat 1) ss) o v)
   where str (t:ts) (s:sh) = (s+t-1) `quot` t : str ts sh
         str [] sh = sh
-        str _ _ = error $ "stride: rank mismatch: " ++ show (ats, ash)
+        str _ _ = error $ "stride: rank mismatch " ++ show (ats, ash)
 
 -- | Rotate the array k times along the d'th dimension.
 -- E.g., if the array shape is @[2, 3, 2]@, d is 1, and k is 4,
@@ -496,7 +496,7 @@ broadcast ds sh a | length ds /= rank a = error "broadcast: wrong number of broa
 update :: (HasCallStack, Vector v, VecElem v a) =>
           Array v a -> [([Int], a)] -> Array v a
 update (A sh t) us | all (ok . fst) us = A sh $ updateT sh t us
-                   | otherwise = error $ "update: index out of bounds " ++ show (filter (not . ok) $ map fst us)
+                   | otherwise = error $ "update: index out of bounds: " ++ show (filter (not . ok) $ map fst us)
   where ok is = length is == r && and (zipWith (\ i s -> 0 <= i && i < s) is sh)
         r = length sh
 

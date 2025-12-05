@@ -25,7 +25,7 @@ matMul x y | [m, n] <- shX, [n', o] <- shY, n == n' =
         yv = reshape [n] $ slice [(0, n), (j, 1)] y
     in  sum $ zipWithA (*) xv yv
            | otherwise =
-  error $ "matMul: bad shapes " ++
+  error $ "matMul: bad shapes: " ++
           show shX ++ " * " ++ show shY
   where shX = shapeL x
         shY = shapeL y
