@@ -389,6 +389,7 @@ traverseT
 traverseT sh f a = fmap (fromListT sh) (traverse f (toListT sh a))
 
 -- Fast check if all elements are equal.
+{-# INLINABLE allSameT #-}
 allSameT :: (Vector v, VecElem v a, Eq a) => ShapeL -> T v a -> Bool
 allSameT sh t@(T _ _ v)
   | vLength v <= 1 = True
@@ -482,6 +483,7 @@ zipWithLong2 :: (a -> b -> b) -> [a] -> [b] -> [b]
 zipWithLong2 f (a:as) (b:bs) = f a b : zipWithLong2 f as bs
 zipWithLong2 _     _     bs  = bs
 
+{-# INLINABLE padT #-}
 padT :: forall v a . (Vector v, VecElem v a) => a -> [(Int, Int)] -> ShapeL -> T v a -> ([Int], T v a)
 padT v aps ash at = (ss, fromVectorT ss $ vConcat $ pad' aps ash st at)
   where pad' :: [(Int, Int)] -> ShapeL -> [Int] -> T v a -> [v a]
@@ -563,6 +565,7 @@ iotaT n = fromListT [n] [0 .. fromIntegral n - 1]    -- TODO: should use V.enumF
 -------
 
 -- | Permute the elements of a list, the first argument is indices into the original list.
+{-# INLINE permute #-}
 permute :: [Int] -> [a] -> [a]
 permute is xs = map (xs!!) is
 
@@ -570,6 +573,7 @@ permute is xs = map (xs!!) is
 revDropWhile :: (a -> Bool) -> [a] -> [a]
 revDropWhile p = reverse . dropWhile p . reverse
 
+{-# INLINABLE allSame #-}
 allSame :: (Eq a) => [a] -> Bool
 allSame [] = True
 allSame (x : xs) = all (x ==) xs
