@@ -94,17 +94,20 @@ size = product . shapeL
 -- In the linearization of the array the outermost (i.e. first list element)
 -- varies most slowly.
 -- O(1) time.
+{-# INLINE shapeL #-}
 shapeL :: Array n a -> ShapeL
 shapeL = G.shapeL . unA
 
 -- | The rank of an array, i.e., the number of dimensions it has,
 -- which is the @n@ in @Array n a@.
 -- O(1) time.
+{-# INLINE rank #-}
 rank :: (KnownNat n) => Array n a -> Int
 rank = G.rank . unA
 
 -- | Index into an array.  Fails if the index is out of bounds.
 -- O(1) time.
+{-# INLINABLE index #-}
 index :: (Unbox a) => Array (1+n) a -> Int -> Array n a
 index a = A . G.index (unA a)
 
@@ -138,6 +141,7 @@ fromVector ss = A . G.fromVector ss
 -- This is semantically an identity function, but can have big performance
 -- implications.
 -- O(n) or O(1) time.
+{-# INLINABLE normalize #-}
 normalize :: (Unbox a, KnownNat n) => Array n a -> Array n a
 normalize = A . G.normalize . unA
 
@@ -150,20 +154,24 @@ reshape s = A . G.reshape s . unA
 -- | Change the size of dimensions with size 1.  These dimension can be changed to any size.
 -- All other dimensions must remain the same.
 -- O(1) time.
+{-# INLINABLE stretch #-}
 stretch :: ShapeL -> Array n a -> Array n a
 stretch s = A . G.stretch s . unA
 
 -- | Change the size of the outermost dimension by replication.
+{-# INLINABLE stretchOuter #-}
 stretchOuter :: (HasCallStack, 1 <= n) => Int -> Array n a -> Array n a
 stretchOuter s = A . G.stretchOuter s . unA
 
 -- | Convert a value to a scalar (rank 0) array.
 -- O(1) time.
+{-# INLINE scalar #-}
 scalar :: (Unbox a) => a -> Array 0 a
 scalar = A . G.scalar
 
 -- | Convert a scalar (rank 0) array to a value.
 -- O(1) time.
+{-# INLINE unScalar #-}
 unScalar :: (Unbox a) => Array 0 a -> a
 unScalar = G.unScalar . unA
 
@@ -182,18 +190,21 @@ mapA f = A . G.mapA f . unA
 
 -- | Map over the array elements.
 -- O(n) time.
+{-# INLINABLE zipWithA #-}
 zipWithA :: (Unbox a, Unbox b, Unbox c) =>
             (a -> b -> c) -> Array n a -> Array n b -> Array n c
 zipWithA f a b = A $ G.zipWithA f (unA a) (unA b)
 
 -- | Map over the array elements.
 -- O(n) time.
+{-# INLINABLE zipWith3A #-}
 zipWith3A :: (Unbox a, Unbox b, Unbox c, Unbox d) =>
              (a -> b -> c -> d) -> Array n a -> Array n b -> Array n c -> Array n d
 zipWith3A f a b c = A $ G.zipWith3A f (unA a) (unA b) (unA c)
 
 -- | Pad each dimension on the low and high side with the given value.
 -- O(n) time.
+{-# INLINABLE pad #-}
 pad :: (Unbox a, KnownNat n) => [(Int, Int)] -> a -> Array n a -> Array n a
 pad ps v = A . G.pad ps v . unA
 
@@ -215,6 +226,7 @@ append x y = A $ G.append (unA x) (unA y)
 -- | Concatenate a number of arrays into a single array.
 -- Fails if any, but the outer, dimensions differ.
 -- O(n) time.
+{-# INLINABLE concatOuter #-}
 concatOuter :: (Unbox a, KnownNat n) => [Array n a] -> Array n a
 concatOuter = A . G.concatOuter . coerce
 
@@ -244,6 +256,7 @@ unravel = R.A . G.mapA A . G.unravel . unA
 --
 -- If the window parameter @ws = [w1,...,wk]@ and @wa = window ws a@ then
 -- @wa `index` i1 ... `index` ik == slice [(i1,w1),...,(ik,wk)] a@.
+{-# INLINABLE window #-}
 window :: (KnownNat n, KnownNat n') => [Int] -> Array n a -> Array n' a
 window ws = A . G.window ws . unA
 
@@ -251,12 +264,14 @@ window ws = A . G.window ws . unA
 -- E.g., if the array shape is @[10,12,8]@ and the strides are
 -- @[2,2]@ then the resulting shape will be @[5,6,8]@.
 -- O(1) time.
+{-# INLINABLE stride #-}
 stride :: [Int] -> Array n a -> Array n a
 stride ws = A . G.stride ws . unA
 
 -- | Rotate the array k times along the d'th dimension.
 -- E.g., if the array shape is @[2, 3, 2]@, d is 1, and k is 4,
 -- the resulting shape will be @[2, 4, 3, 2]@.
+{-# INLINABLE rotate #-}
 rotate :: forall d p a.
           (KnownNat p, KnownNat d, Unbox a,
           -- Nonsense
@@ -276,6 +291,7 @@ rotate k = A . G.rotate @d @p k . unA
 -- The extracted slice must fall within the array dimensions.
 -- E.g. @slice [1,2] (fromList [4] [1,2,3,4]) == [2,3]@.
 -- O(1) time.
+{-# INLINABLE slice #-}
 slice :: [(Int, Int)] -> Array n a -> Array n a
 slice ss = A . G.slice ss . unA
 
@@ -283,6 +299,7 @@ slice ss = A . G.slice ss . unA
 -- the results into an array with the same /n/ outermost dimensions.
 -- The /n/ must not exceed the rank of the array.
 -- O(1) time.
+{-# INLINABLE rerank #-}
 rerank :: forall n i o a b .
           (Unbox a, Unbox b, KnownNat n, KnownNat o, KnownNat (n+o), KnownNat (1+o)) =>
           (Array i a -> Array o b) -> Array (n+i) a -> Array (n+o) b
@@ -292,6 +309,7 @@ rerank f = A . G.rerank (unA . f . A) . unA
 -- the results into an array with the same /n/ outermost dimensions.
 -- The /n/ must not exceed the rank of the array.
 -- O(n) time.
+{-# INLINABLE rerank2 #-}
 rerank2 :: forall n i o a b c .
            (Unbox a, Unbox b, Unbox c, KnownNat n, KnownNat o, KnownNat (n+o), KnownNat (1+o)) =>
            (Array i a -> Array i b -> Array o c) -> Array (n+i) a -> Array (n+i) b -> Array (n+o) c
@@ -299,30 +317,36 @@ rerank2 f ta tb = A $ G.rerank2 @n (\ a b -> unA $ f (A a) (A b)) (unA ta) (unA 
 
 -- | Reverse the given dimensions, with the outermost being dimension 0.
 -- O(1) time.
+{-# INLINABLE rev #-}
 rev :: [Int] -> Array n a -> Array n a
 rev rs = A . G.rev rs . unA
 
 -- | Reduce all elements of an array into a rank 0 array.
 -- To reduce parts use 'rerank' and 'transpose' together with 'reduce'.
 -- O(n) time.
+{-# INLINABLE reduce #-}
 reduce :: (Unbox a) => (a -> a -> a) -> a -> Array n a -> Array 0 a
 reduce f z = A . G.reduce f z . unA
 
 -- | Constrained version of 'foldr' for Arrays.
+{-# INLINABLE foldrA #-}
 foldrA :: (Unbox a, Unbox b) => (a -> b -> b) -> b -> Array n a -> b
 foldrA f z = G.foldrA f z . unA
 
 -- | Constrained version of 'traverse' for Arrays.
+{-# INLINABLE traverseA #-}
 traverseA
   :: (Unbox a, Unbox b, Applicative f)
   => (a -> f b) -> Array n a -> f (Array n b)
 traverseA f = fmap A . G.traverseA f . unA
 
 -- | Check if all elements of the array are equal.
+{-# INLINABLE allSameA #-}
 allSameA :: (Unbox a, Eq a) => Array n a -> Bool
 allSameA = G.allSameA . unA
 
-instance (KnownNat r, Arbitrary a, Unbox a) => Arbitrary (Array r a) where arbitrary = A <$> arbitrary
+instance (KnownNat r, Arbitrary a, Unbox a) => Arbitrary (Array r a) where
+  arbitrary = A <$> arbitrary
 
 -- | Sum of all elements.
 {-# INLINE sumA #-}
@@ -358,6 +382,7 @@ allA p = G.allA p . unA
 -- and just replicate the data along all other dimensions.
 -- The list of dimensions indicies must have the same rank as the argument array
 -- and it must be strictly ascending.
+{-# INLINABLE broadcast #-}
 broadcast :: forall r' r a .
              (HasCallStack, Unbox a, KnownNat r, KnownNat r') =>
              [Int] -> ShapeL -> Array r a -> Array r' a
