@@ -54,6 +54,7 @@ class Vector v where
   vLength   :: (VecElem v a) => v a -> Int
   vToList   :: (VecElem v a) => v a -> [a]
   vFromList :: (VecElem v a) => [a] -> v a
+  vFromListN:: (VecElem v a) => Int -> [a] -> v a
   vSingleton:: (VecElem v a) => a -> v a
   vReplicate:: (VecElem v a) => Int -> a -> v a
   vMap      :: (VecElem v a, VecElem v b) => (a -> b) -> v a -> v b
@@ -84,6 +85,7 @@ instance Vector [] where
   vLength = length
   vToList = id
   vFromList = id
+  vFromListN _ = id
   vSingleton = pure
   vReplicate = replicate
   vMap = map
@@ -236,7 +238,7 @@ toVectorT sh a@(T ats ao v) =
         vConcat $ DL.toList $ loop oks sh ats ao
       else
         -- All slices would have length 1, going via a list is faster.
-        vFromList $ toListT sh a
+        vFromListN l $ toListT sh a
 
 -- Convert to a vector containing the right elements,
 -- but not necessarily in the right order.
@@ -268,7 +270,7 @@ fromVectorT sh = T (tail $ getStridesT sh) 0
 -- Convert from a list
 {-# INLINE fromListT #-}
 fromListT :: (Vector v, VecElem v a) => [Int] -> [a] -> T v a
-fromListT sh = fromVectorT sh . vFromList
+fromListT sh = fromVectorT sh . vFromListN (product sh)
 
 -- Index into the outermost dimension of an array.
 {-# INLINE indexT #-}

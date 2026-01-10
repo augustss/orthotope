@@ -144,7 +144,7 @@ toVector a@(A t) = toVectorT (shapeL a) t
 fromList :: forall sh v a . (HasCallStack, Vector v, VecElem v a, Shape sh) =>
             [a] -> Array sh v a
 fromList vs | n /= l = error $ "fromList: size mismatch " ++ show (n, l)
-            | otherwise = A $ T st 0 $ vFromList vs
+            | otherwise = A $ T st 0 $ vFromListN l vs
   where n : st = getStridesT ss
         l = length vs
         ss = shapeP (Proxy :: Proxy sh)
