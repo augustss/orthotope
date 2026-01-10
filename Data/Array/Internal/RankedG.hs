@@ -142,7 +142,7 @@ fromList :: forall n v a . (HasCallStack, Vector v, VecElem v a, KnownNat n) =>
             ShapeL -> [a] -> Array n v a
 fromList ss vs | n /= l = error $ "fromList: size mismatch " ++ show (n, l)
                | length ss /= valueOf @n = error $ "fromList: rank mismatch " ++ show (length ss, valueOf @n :: Int)
-               | otherwise = A ss $ T st 0 $ vFromList vs
+               | otherwise = A ss $ T st 0 $ vFromListN l vs
   where n : st = getStridesT ss
         l = length vs
 
