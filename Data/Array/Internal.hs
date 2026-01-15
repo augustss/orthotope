@@ -245,12 +245,12 @@ toVectorT sh a = case toVectorListT sh a of
   [v] -> v
   l -> vConcat l
 
--- Convert to a vector containing the right elements,
+-- Convert to a list of vectors containing altogether the right elements,
 -- but not necessarily in the right order.
 -- This is used for reduction with commutative&associative operations.
-{-# INLINE toUnorderedVectorT #-}
-toUnorderedVectorT :: (Vector v, VecElem v a) => ShapeL -> T v a -> v a
-toUnorderedVectorT sh a@(T ats ao v) =
+{-# INLINE toUnorderedVectorListT #-}
+toUnorderedVectorListT :: (Vector v, VecElem v a) => ShapeL -> T v a -> [v a]
+toUnorderedVectorListT sh a@(T ats ao v) =
   -- Figure out if the array maps onto some contiguous slice of the vector.
   -- Do this by checking if a transposition of the array corresponds to
   -- normal strides.
@@ -263,9 +263,9 @@ toUnorderedVectorT sh a@(T ats ao v) =
     l : ts' = getStridesT sh'
   in
       if ats' == ts' then
-        vSlice ao l v
+        [vSlice ao l v]
       else
-        toVectorT sh a
+        toVectorListT sh a
 
 -- Convert from a vector.
 {-# INLINE fromVectorT #-}
@@ -522,30 +522,30 @@ simpleReshape _ _ _ = Nothing
 -- Note: assumes + is commutative&associative.
 {-# INLINE sumT #-}
 sumT :: (Vector v, VecElem v a, Num a) => ShapeL -> T v a -> a
-sumT sh = vSum . toUnorderedVectorT sh
+sumT sh = sum . map vSum . toUnorderedVectorListT sh
 
 -- Note: assumes * is commutative&associative.
 {-# INLINE productT #-}
 productT :: (Vector v, VecElem v a, Num a) => ShapeL -> T v a -> a
-productT sh = vProduct . toUnorderedVectorT sh
+productT sh = product . map vProduct . toUnorderedVectorListT sh
 
 -- Note: assumes max is commutative&associative.
 {-# INLINE maximumT #-}
 maximumT :: (Vector v, VecElem v a, Ord a) => ShapeL -> T v a -> a
-maximumT sh = vMaximum . toUnorderedVectorT sh
+maximumT sh = maximum . map vMaximum . toUnorderedVectorListT sh
 
 -- Note: assumes min is commutative&associative.
 {-# INLINE minimumT #-}
 minimumT :: (Vector v, VecElem v a, Ord a) => ShapeL -> T v a -> a
-minimumT sh = vMinimum . toUnorderedVectorT sh
+minimumT sh = minimum . map vMinimum . toUnorderedVectorListT sh
 
 {-# INLINE anyT #-}
 anyT :: (Vector v, VecElem v a) => ShapeL -> (a -> Bool) -> T v a -> Bool
-anyT sh p = vAny p . toUnorderedVectorT sh
+anyT sh p = or . map (vAny p) . toUnorderedVectorListT sh
 
 {-# INLINE allT #-}
 allT :: (Vector v, VecElem v a) => ShapeL -> (a -> Bool) -> T v a -> Bool
-allT sh p = vAll p . toUnorderedVectorT sh
+allT sh p = and . map (vAll p) . toUnorderedVectorListT sh
 
 {-# INLINE updateT #-}
 updateT :: (Vector v, VecElem v a) => ShapeL -> T v a -> [([Int], a)] -> T v a
