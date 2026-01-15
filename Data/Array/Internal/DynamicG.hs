@@ -126,7 +126,7 @@ toVector (A sh t) = toVectorT sh t
 {-# INLINE fromList #-}
 fromList :: (HasCallStack, Vector v, VecElem v a) => ShapeL -> [a] -> Array v a
 fromList ss vs | n /= l = error $ "fromList: size mismatch" ++ show (n, l)
-               | otherwise = A ss $ T st 0 $ vFromList vs
+               | otherwise = A ss $ T st 0 $ vFromListN l vs
   where n : st = getStridesT ss
         l = length vs
 

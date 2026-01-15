@@ -69,6 +69,8 @@ instance Vector V.Vector where
   vToList = V.toList
   {-# INLINE vFromList #-}
   vFromList = V.fromList
+  {-# INLINE vFromListN #-}
+  vFromListN = V.fromListN
   {-# INLINE vSingleton #-}
   vSingleton = V.singleton
   {-# INLINE vReplicate #-}
