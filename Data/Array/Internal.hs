@@ -219,8 +219,6 @@ toVectorT sh a@(T ats ao v) =
   let l : ts' = getStridesT sh
       -- Are strides ok from this point?
       oks = scanr (&&) True (zipWith (==) ats ts')
-      loop _ [] _ o =
-        DL.singleton (vSlice o 1 v)
       loop (b:bs) (s:ss) (t:ts) o =
         if b then
           -- All strides normal from this point,
@@ -229,11 +227,13 @@ toVectorT sh a@(T ats ao v) =
         else
           -- Strides are not normal, collect slices.
           DL.concat [ loop bs ss ts (i*t + o) | i <- [0 .. s-1] ]
-      loop _ _ _ _ = error "impossible"
+      loop _ _ _ _ = error "impossible"  -- due to how @loop@ is called
   in  if head oks && vLength v == l then
         -- All strides are normal, return entire vector
         v
-      else if oks !! length sh then  -- Special case for speed.
+      else if null sh then
+        vSlice ao 1 v
+      else if oks !! (length sh - 1) then  -- Special case for speed.
         -- Innermost dimension is normal, so slices are non-trivial.
         vConcat $ DL.toList $ loop oks sh ats ao
       else
