@@ -211,11 +211,10 @@ unScalarT (T _ o v) = vIndex v o
 constantT :: (Vector v, VecElem v a) => ShapeL -> a -> T v a
 constantT sh x = T (map (const 0) sh) 0 (vSingleton x)
 
--- TODO: change to return a list of vectors.
 -- Convert an array to a vector in the natural order.
-{-# INLINE toVectorT #-}
-toVectorT :: (Vector v, VecElem v a) => ShapeL -> T v a -> v a
-toVectorT sh a@(T ats ao v) =
+{-# INLINE toVectorListT #-}
+toVectorListT :: (Vector v, VecElem v a) => ShapeL -> T v a -> [v a]
+toVectorListT sh a@(T ats ao v) =
   let l : ts' = getStridesT sh
       -- Are strides ok from this point?
       oks = scanr (&&) True (zipWith (==) ats ts')
@@ -230,15 +229,21 @@ toVectorT sh a@(T ats ao v) =
       loop _ _ _ _ = error "impossible"  -- due to how @loop@ is called
   in  if ats == ts' && vLength v == l then
         -- All strides are normal, return entire vector
-        v
+        [v]
       else if null sh then
-        vSlice ao 1 v
+        [vSlice ao 1 v]
       else if oks !! (length sh - 1) then  -- Special case for speed.
         -- Innermost dimension is normal, so slices are non-trivial.
-        vConcat $ DL.toList $ loop oks sh ats ao
+        DL.toList $ loop oks sh ats ao
       else
         -- All slices would have length 1, going via a list is faster.
-        vFromListN l $ toListT sh a
+        [vFromListN l $ toListT sh a]
+
+{-# INLINE toVectorT #-}
+toVectorT :: (Vector v, VecElem v a) => ShapeL -> T v a -> v a
+toVectorT sh a = case toVectorListT sh a of
+  [v] -> v
+  l -> vConcat l
 
 -- Convert to a vector containing the right elements,
 -- but not necessarily in the right order.
@@ -375,7 +380,7 @@ reverseT rs sh (T ats ao v) = T rts ro v
 {-# INLINE reduceT #-}
 reduceT :: (Vector v, VecElem v a) =>
            ShapeL -> (a -> a -> a) -> a -> T v a -> T v a
-reduceT sh f z = scalarT . vFold f z . toVectorT sh
+reduceT sh f z = scalarT . foldl' (vFold f) z . toVectorListT sh
 
 -- Right fold via toListT.
 {-# INLINE foldrT #-}
@@ -396,9 +401,9 @@ allSameT :: (Vector v, VecElem v a, Eq a) => ShapeL -> T v a -> Bool
 allSameT sh t@(T _ _ v)
   | vLength v <= 1 = True
   | otherwise =
-    let !v' = toVectorT sh t
-        !x = vIndex v' 0
-    in  vAll (x ==) v'
+    let !l = toVectorListT sh t
+        !x = vIndex (l !! 0) 0
+    in  all (vAll (x ==)) l
 
 newtype Rect = Rect { unRect :: [String] }  -- A rectangle of text
 
@@ -489,7 +494,7 @@ zipWithLong2 _     _     bs  = bs
 padT :: forall v a . (Vector v, VecElem v a) => a -> [(Int, Int)] -> ShapeL -> T v a -> ([Int], T v a)
 padT v aps ash at = (ss, fromVectorT ss $ vConcat $ pad' aps ash st at)
   where pad' :: [(Int, Int)] -> ShapeL -> [Int] -> T v a -> [v a]
-        pad' [] sh _ t = [toVectorT sh t]
+        pad' [] sh _ t = toVectorListT sh t
         pad' ((l,h):ps) (s:sh) (n:ns) t =
           [vReplicate (n*l) v] ++ concatMap (pad' ps sh ns . indexT t) [0..s-1] ++ [vReplicate (n*h) v]
         pad' _ _ _ _ = error $ "pad: rank mismatch " ++ show (length aps, length ash)
