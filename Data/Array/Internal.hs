@@ -219,7 +219,7 @@ toVectorT sh a@(T ats ao v) =
   let l : ts' = getStridesT sh
       -- Are strides ok from this point?
       oks = scanr (&&) True (zipWith (==) ats ts')
-      loop (b:bs) (s:ss) (t:ts) o =
+      loop (b:bs) (s:ss) (t:ts) !o =
         if b then
           -- All strides normal from this point,
           -- so just take a slice of the underlying vector.
@@ -228,7 +228,7 @@ toVectorT sh a@(T ats ao v) =
           -- Strides are not normal, collect slices.
           DL.concat [ loop bs ss ts (i*t + o) | i <- [0 .. s-1] ]
       loop _ _ _ _ = error "impossible"  -- due to how @loop@ is called
-  in  if head oks && vLength v == l then
+  in  if ats == ts' && vLength v == l then
         -- All strides are normal, return entire vector
         v
       else if null sh then
