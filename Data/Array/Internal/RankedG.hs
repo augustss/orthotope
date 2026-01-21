@@ -151,7 +151,7 @@ fromList ss vs | n /= l = error $ "fromList: size mismatch " ++ show (n, l)
 {-# INLINE fromVector #-}
 fromVector :: forall n v a . (HasCallStack, Vector v, VecElem v a, KnownNat n) =>
               ShapeL -> v a -> Array n v a
-fromVector ss v | n /= l = error $ "fromVector: size mismatch" ++ show (n, l)
+fromVector ss v | n /= l = error $ "fromVector: size mismatch " ++ show (n, l)
                 | length ss /= valueOf @n = error $ "fromVector: rank mismatch " ++ show (length ss, valueOf @n :: Int)
                 | otherwise = A ss $ T st 0 v
   where n : st = getStridesT ss
@@ -233,7 +233,7 @@ mapA f (A s t) = A s (mapT s f t)
 zipWithA :: (Vector v, VecElem v a, VecElem v b, VecElem v c) =>
             (a -> b -> c) -> Array n v a -> Array n v b -> Array n v c
 zipWithA f (A s t) (A s' t') | s == s' = A s (zipWithT s f t t')
-                             | otherwise = error $ "zipWithA: shape mismatch: " ++ show (s, s')
+                             | otherwise = error $ "zipWithA: shape mismatch " ++ show (s, s')
 
 -- | Map over the array elements.
 -- O(n) time.
@@ -241,7 +241,7 @@ zipWithA f (A s t) (A s' t') | s == s' = A s (zipWithT s f t t')
 zipWith3A :: (Vector v, VecElem v a, VecElem v b, VecElem v c, VecElem v d) =>
              (a -> b -> c -> d) -> Array n v a -> Array n v b -> Array n v c -> Array n v d
 zipWith3A f (A s t) (A s' t') (A s'' t'') | s == s' && s == s'' = A s (zipWith3T s f t t' t'')
-                                          | otherwise = error $ "zipWith3A: shape mismatch: " ++ show (s, s', s'')
+                                          | otherwise = error $ "zipWith3A: shape mismatch " ++ show (s, s', s'')
 
 -- | Pad each dimension on the low and high side with the given value.
 -- O(n) time.
@@ -322,13 +322,13 @@ unravel = rerank @1 scalar
 {-# INLINE window #-}
 window :: forall n n' v a . (Vector v, KnownNat n, KnownNat n') =>
           [Int] -> Array n v a -> Array n' v a
-window aws _ | valueOf @n' /= length aws + valueOf @n = error $ "window: rank mismatch: " ++ show (valueOf @n' :: Int, length aws, valueOf @n :: Int)
+window aws _ | valueOf @n' /= length aws + valueOf @n = error $ "window: rank mismatch " ++ show (valueOf @n' :: Int, length aws, valueOf @n :: Int)
 window aws (A ash (T ss o v)) = A (win aws ash) (T (ss' ++ ss) o v)
   where ss' = zipWith const ss aws
         win (w:ws) (s:sh) | w <= s = s - w + 1 : win ws sh
-                          | otherwise = error $ "window: bad window size : " ++ show (w, s)
+                          | otherwise = error $ "window: bad window size " ++ show (w, s)
         win [] sh = aws ++ sh
-        win _ _ = error $ "window: rank mismatch: " ++ show (aws, ash)
+        win _ _ = error $ "window: rank mismatch " ++ show (aws, ash)
 
 -- | Stride the outermost dimensions.
 -- E.g., if the array shape is @[10,12,8]@ and the strides are
@@ -339,7 +339,7 @@ stride :: (Vector v) => [Int] -> Array n v a -> Array n v a
 stride ats (A ash (T ss o v)) = A (str ats ash) (T (zipWith (*) (ats ++ repeat 1) ss) o v)
   where str (t:ts) (s:sh) = (s+t-1) `quot` t : str ts sh
         str [] sh = sh
-        str _ _ = error $ "stride: rank mismatch: " ++ show (ats, ash)
+        str _ _ = error $ "stride: rank mismatch " ++ show (ats, ash)
 
 -- | Rotate the array k times along the d'th dimension.
 -- E.g., if the array shape is @[2, 3, 2]@, d is 1, and k is 4,

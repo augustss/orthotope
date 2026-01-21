@@ -488,7 +488,7 @@ padT v aps ash at = (ss, fromVectorT ss $ vConcat $ pad' aps ash st at)
         pad' [] sh _ t = [toVectorT sh t]
         pad' ((l,h):ps) (s:sh) (n:ns) t =
           [vReplicate (n*l) v] ++ concatMap (pad' ps sh ns . indexT t) [0..s-1] ++ [vReplicate (n*h) v]
-        pad' _ _ _ _ = error $ "pad: rank mismatch: " ++ show (length aps, length ash)
+        pad' _ _ _ _ = error $ "pad: rank mismatch " ++ show (length aps, length ash)
         _ : st = getStridesT ss
         ss = zipWithLong2 (\ (l,h) s -> l+s+h) aps ash
 
@@ -507,7 +507,7 @@ simpleReshape osts os ns
       loop [] [] = []
       loop (1:ss)     sts  = 0  : loop ss sts
       loop (_:ss) (st:sts) = st : loop ss sts
-      loop _ _ = error $ "simpleReshape: shouldn't happen: " ++ show (osts, os, ns)
+      loop _ _ = error $ "simpleReshape: shouldn't happen " ++ show (osts, os, ns)
 simpleReshape _ _ _ = Nothing
 
 -- Note: assumes + is commutative&associative.
