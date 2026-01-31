@@ -69,9 +69,9 @@ data Array (n :: Nat) v a = A !ShapeL !(T v a)
   deriving (Generic, Data)
 
 instance (Vector v, Show a, VecElem v a) => Show (Array n v a) where
-  {-# INLINABLE showsPrec #-}
   showsPrec p a@(A s _) = showParen (p > 10) $
     showString "fromList " . showsPrec 11 s . showString " " . showsPrec 11 (toList a)
+  {-# INLINABLE showsPrec #-}
 
 instance (KnownNat n, Vector v, Read a, VecElem v a) => Read (Array n v a) where
   readsPrec p = readParen (p > 10) $ \ r1 ->
@@ -92,6 +92,7 @@ instance (Vector v, Pretty a, VecElem v a) => Pretty (Array n v a) where
 
 instance (NFData (v a)) => NFData (Array n v a) where
   rnf (A sh v) = rnf sh `seq` rnf v
+  {-# INLINE rnf #-}
 
 -- | The number of elements in the array.
 -- O(1) time.
@@ -141,7 +142,7 @@ fromList :: forall n v a . (HasCallStack, Vector v, VecElem v a, KnownNat n) =>
             ShapeL -> [a] -> Array n v a
 fromList ss vs | n /= l = error $ "fromList: size mismatch " ++ show (n, l)
                | length ss /= valueOf @n = error $ "fromList: rank mismatch " ++ show (length ss, valueOf @n :: Int)
-               | otherwise = A ss $ T st 0 $ vFromList vs
+               | otherwise = A ss $ T st 0 $ vFromListN l vs
   where n : st = getStridesT ss
         l = length vs
 
@@ -218,7 +219,7 @@ constant :: forall n v a . (Vector v, VecElem v a, KnownNat n) =>
             ShapeL -> a -> Array n v a
 constant sh | badShape sh = error $ "constant: bad shape: " ++ show sh
             | length sh /= valueOf @n = error "constant: rank mismatch"
-            | otherwise   = A sh . constantT sh
+            | otherwise = A sh . constantT sh
 
 -- | Map over the array elements.
 -- O(n) time.
@@ -344,6 +345,7 @@ stride ats (A ash (T ss o v)) = A (str ats ash) (T (zipWith (*) (ats ++ repeat 1
 -- | Rotate the array k times along the d'th dimension.
 -- E.g., if the array shape is @[2, 3, 2]@, d is 1, and k is 4,
 -- the resulting shape will be @[2, 4, 3, 2]@.
+{-# INLINABLE rotate #-}
 rotate :: forall d p v a.
           (KnownNat p, KnownNat d,
           Vector v, VecElem v a,
@@ -455,6 +457,7 @@ traverseA
 traverseA f (A sh t) = A sh <$> traverseT sh f t
 
 -- | Check if all elements of the array are equal.
+{-# INLINE allSameA #-}
 allSameA :: (Vector v, VecElem v a, Eq a) => Array r v a -> Bool
 allSameA (A sh t) = allSameT sh t
 
@@ -500,6 +503,7 @@ allA p (A sh t) = allT sh p t
 -- and just replicate the data along all other dimensions.
 -- The list of dimensions indicies must have the same rank as the argument array
 -- and it must be strictly ascending.
+{-# INLINABLE broadcast #-}
 broadcast :: forall r' r v a .
              (HasCallStack, Vector v, VecElem v a, KnownNat r, KnownNat r') =>
              [Int] -> ShapeL -> Array r v a -> Array r' v a
