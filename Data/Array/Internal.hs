@@ -271,6 +271,12 @@ toUnorderedVectorListT sh a@(T ats ao v) =
       else
         toVectorListT sh a
 
+{-# INLINE toUnorderedVectorT #-}
+toUnorderedVectorT :: (Vector v, VecElem v a) => ShapeL -> T v a -> v a
+toUnorderedVectorT sh a = case toUnorderedVectorListT sh a of
+  [v] -> v
+  l -> vConcat l
+
 -- Convert from a vector.
 {-# INLINE fromVectorT #-}
 fromVectorT :: ShapeL -> v a -> T v a
