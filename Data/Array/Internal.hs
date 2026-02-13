@@ -211,7 +211,11 @@ unScalarT (T _ o v) = vIndex v o
 constantT :: (Vector v, VecElem v a) => ShapeL -> a -> T v a
 constantT sh x = T (map (const 0) sh) 0 (vSingleton x)
 
--- Convert an array to a vector in the natural order.
+-- Convert an array to a list of vectors, which together contain
+-- all the elements in the natural order.
+-- An invariant: if the input array is non-empty the returned list
+-- will have no empty vectors.
+-- The minimum/maximum operations rely on this invariant.
 {-# INLINE toVectorListT #-}
 toVectorListT :: (Vector v, VecElem v a) => ShapeL -> T v a -> [v a]
 toVectorListT sh a@(T ats ao v) =
