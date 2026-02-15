@@ -54,6 +54,7 @@ class Vector v where
   vLength   :: (VecElem v a) => v a -> Int
   vToList   :: (VecElem v a) => v a -> [a]
   vFromList :: (VecElem v a) => [a] -> v a
+  vFromListN:: (VecElem v a) => Int -> [a] -> v a
   vSingleton:: (VecElem v a) => a -> v a
   vReplicate:: (VecElem v a) => Int -> a -> v a
   vMap      :: (VecElem v a, VecElem v b) => (a -> b) -> v a -> v b
@@ -84,6 +85,7 @@ instance Vector [] where
   vLength = length
   vToList = id
   vFromList = id
+  vFromListN _ = id
   vSingleton = pure
   vReplicate = replicate
   vMap = map
@@ -209,17 +211,18 @@ unScalarT (T _ o v) = vIndex v o
 constantT :: (Vector v, VecElem v a) => ShapeL -> a -> T v a
 constantT sh x = T (map (const 0) sh) 0 (vSingleton x)
 
--- TODO: change to return a list of vectors.
--- Convert an array to a vector in the natural order.
-{-# INLINE toVectorT #-}
-toVectorT :: (Vector v, VecElem v a) => ShapeL -> T v a -> v a
-toVectorT sh a@(T ats ao v) =
+-- Convert an array to a list of vectors, which together contain
+-- all the elements in the natural order.
+-- An invariant: if the input array is non-empty the returned list
+-- will have no empty vectors.
+-- The minimum/maximum operations rely on this invariant.
+{-# INLINE toVectorListT #-}
+toVectorListT :: (Vector v, VecElem v a) => ShapeL -> T v a -> [v a]
+toVectorListT sh a@(T ats ao v) =
   let l : ts' = getStridesT sh
       -- Are strides ok from this point?
       oks = scanr (&&) True (zipWith (==) ats ts')
-      loop _ [] _ o =
-        DL.singleton (vSlice o 1 v)
-      loop (b:bs) (s:ss) (t:ts) o =
+      loop (b:bs) (s:ss) (t:ts) !o =
         if b then
           -- All strides normal from this point,
           -- so just take a slice of the underlying vector.
@@ -227,23 +230,31 @@ toVectorT sh a@(T ats ao v) =
         else
           -- Strides are not normal, collect slices.
           DL.concat [ loop bs ss ts (i*t + o) | i <- [0 .. s-1] ]
-      loop _ _ _ _ = error "impossible"
-  in  if head oks && vLength v == l then
+      loop _ _ _ _ = error "impossible"  -- due to how @loop@ is called
+  in  if ats == ts' && vLength v == l then
         -- All strides are normal, return entire vector
-        v
-      else if oks !! length sh then  -- Special case for speed.
+        [v]
+      else if null sh then
+        [vSlice ao 1 v]
+      else if oks !! (length sh - 1) then  -- Special case for speed.
         -- Innermost dimension is normal, so slices are non-trivial.
-        vConcat $ DL.toList $ loop oks sh ats ao
+        DL.toList $ loop oks sh ats ao
       else
         -- All slices would have length 1, going via a list is faster.
-        vFromList $ toListT sh a
+        [vFromListN l $ toListT sh a]
 
--- Convert to a vector containing the right elements,
+{-# INLINE toVectorT #-}
+toVectorT :: (Vector v, VecElem v a) => ShapeL -> T v a -> v a
+toVectorT sh a = case toVectorListT sh a of
+  [v] -> v
+  l -> vConcat l
+
+-- Convert to a list of vectors containing altogether the right elements,
 -- but not necessarily in the right order.
 -- This is used for reduction with commutative&associative operations.
-{-# INLINE toUnorderedVectorT #-}
-toUnorderedVectorT :: (Vector v, VecElem v a) => ShapeL -> T v a -> v a
-toUnorderedVectorT sh a@(T ats ao v) =
+{-# INLINE toUnorderedVectorListT #-}
+toUnorderedVectorListT :: (Vector v, VecElem v a) => ShapeL -> T v a -> [v a]
+toUnorderedVectorListT sh a@(T ats ao v) =
   -- Figure out if the array maps onto some contiguous slice of the vector.
   -- Do this by checking if a transposition of the array corresponds to
   -- normal strides.
@@ -256,9 +267,15 @@ toUnorderedVectorT sh a@(T ats ao v) =
     l : ts' = getStridesT sh'
   in
       if ats' == ts' then
-        vSlice ao l v
+        [vSlice ao l v]
       else
-        toVectorT sh a
+        toVectorListT sh a
+
+{-# INLINE toUnorderedVectorT #-}
+toUnorderedVectorT :: (Vector v, VecElem v a) => ShapeL -> T v a -> v a
+toUnorderedVectorT sh a = case toUnorderedVectorListT sh a of
+  [v] -> v
+  l -> vConcat l
 
 -- Convert from a vector.
 {-# INLINE fromVectorT #-}
@@ -268,7 +285,7 @@ fromVectorT sh = T (tail $ getStridesT sh) 0
 -- Convert from a list
 {-# INLINE fromListT #-}
 fromListT :: (Vector v, VecElem v a) => [Int] -> [a] -> T v a
-fromListT sh = fromVectorT sh . vFromList
+fromListT sh = fromVectorT sh . vFromListN (product sh)
 
 -- Index into the outermost dimension of an array.
 {-# INLINE indexT #-}
@@ -373,7 +390,7 @@ reverseT rs sh (T ats ao v) = T rts ro v
 {-# INLINE reduceT #-}
 reduceT :: (Vector v, VecElem v a) =>
            ShapeL -> (a -> a -> a) -> a -> T v a -> T v a
-reduceT sh f z = scalarT . vFold f z . toVectorT sh
+reduceT sh f z = scalarT . foldl' (vFold f) z . toVectorListT sh
 
 -- Right fold via toListT.
 {-# INLINE foldrT #-}
@@ -389,13 +406,14 @@ traverseT
 traverseT sh f a = fmap (fromListT sh) (traverse f (toListT sh a))
 
 -- Fast check if all elements are equal.
+{-# INLINABLE allSameT #-}
 allSameT :: (Vector v, VecElem v a, Eq a) => ShapeL -> T v a -> Bool
 allSameT sh t@(T _ _ v)
   | vLength v <= 1 = True
   | otherwise =
-    let !v' = toVectorT sh t
-        !x = vIndex v' 0
-    in  vAll (x ==) v'
+    let !l = toVectorListT sh t
+        !x = vIndex (l !! 0) 0
+    in  all (vAll (x ==)) l
 
 newtype Rect = Rect { unRect :: [String] }  -- A rectangle of text
 
@@ -482,10 +500,11 @@ zipWithLong2 :: (a -> b -> b) -> [a] -> [b] -> [b]
 zipWithLong2 f (a:as) (b:bs) = f a b : zipWithLong2 f as bs
 zipWithLong2 _     _     bs  = bs
 
+{-# INLINABLE padT #-}
 padT :: forall v a . (Vector v, VecElem v a) => a -> [(Int, Int)] -> ShapeL -> T v a -> ([Int], T v a)
 padT v aps ash at = (ss, fromVectorT ss $ vConcat $ pad' aps ash st at)
   where pad' :: [(Int, Int)] -> ShapeL -> [Int] -> T v a -> [v a]
-        pad' [] sh _ t = [toVectorT sh t]
+        pad' [] sh _ t = toVectorListT sh t
         pad' ((l,h):ps) (s:sh) (n:ns) t =
           [vReplicate (n*l) v] ++ concatMap (pad' ps sh ns . indexT t) [0..s-1] ++ [vReplicate (n*h) v]
         pad' _ _ _ _ = error $ "pad: rank mismatch " ++ show (length aps, length ash)
@@ -513,30 +532,30 @@ simpleReshape _ _ _ = Nothing
 -- Note: assumes + is commutative&associative.
 {-# INLINE sumT #-}
 sumT :: (Vector v, VecElem v a, Num a) => ShapeL -> T v a -> a
-sumT sh = vSum . toUnorderedVectorT sh
+sumT sh = sum . map vSum . toUnorderedVectorListT sh
 
 -- Note: assumes * is commutative&associative.
 {-# INLINE productT #-}
 productT :: (Vector v, VecElem v a, Num a) => ShapeL -> T v a -> a
-productT sh = vProduct . toUnorderedVectorT sh
+productT sh = product . map vProduct . toUnorderedVectorListT sh
 
 -- Note: assumes max is commutative&associative.
 {-# INLINE maximumT #-}
 maximumT :: (Vector v, VecElem v a, Ord a) => ShapeL -> T v a -> a
-maximumT sh = vMaximum . toUnorderedVectorT sh
+maximumT sh = maximum . map vMaximum . toUnorderedVectorListT sh
 
 -- Note: assumes min is commutative&associative.
 {-# INLINE minimumT #-}
 minimumT :: (Vector v, VecElem v a, Ord a) => ShapeL -> T v a -> a
-minimumT sh = vMinimum . toUnorderedVectorT sh
+minimumT sh = minimum . map vMinimum . toUnorderedVectorListT sh
 
 {-# INLINE anyT #-}
 anyT :: (Vector v, VecElem v a) => ShapeL -> (a -> Bool) -> T v a -> Bool
-anyT sh p = vAny p . toUnorderedVectorT sh
+anyT sh p = or . map (vAny p) . toUnorderedVectorListT sh
 
 {-# INLINE allT #-}
 allT :: (Vector v, VecElem v a) => ShapeL -> (a -> Bool) -> T v a -> Bool
-allT sh p = vAll p . toUnorderedVectorT sh
+allT sh p = and . map (vAll p) . toUnorderedVectorListT sh
 
 {-# INLINE updateT #-}
 updateT :: (Vector v, VecElem v a) => ShapeL -> T v a -> [([Int], a)] -> T v a
@@ -563,6 +582,7 @@ iotaT n = fromListT [n] [0 .. fromIntegral n - 1]    -- TODO: should use V.enumF
 -------
 
 -- | Permute the elements of a list, the first argument is indices into the original list.
+{-# INLINE permute #-}
 permute :: [Int] -> [a] -> [a]
 permute is xs = map (xs!!) is
 
@@ -570,6 +590,7 @@ permute is xs = map (xs!!) is
 revDropWhile :: (a -> Bool) -> [a] -> [a]
 revDropWhile p = reverse . dropWhile p . reverse
 
+{-# INLINABLE allSame #-}
 allSame :: (Eq a) => [a] -> Bool
 allSame [] = True
 allSame (x : xs) = all (x ==) xs

@@ -13,13 +13,13 @@
 -- limitations under the License.
 
 {-# OPTIONS_GHC -Wno-incomplete-uni-patterns #-}
-{-# LANGUAGE DeriveDataTypeable #-}
-{-# LANGUAGE DeriveGeneric #-}
-{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE DeriveDataTypeable    #-}
+{-# LANGUAGE DeriveGeneric         #-}
+{-# LANGUAGE FlexibleInstances     #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
-{-# LANGUAGE RoleAnnotations #-}
-{-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE UndecidableInstances #-}
+{-# LANGUAGE RoleAnnotations       #-}
+{-# LANGUAGE ScopedTypeVariables   #-}
+{-# LANGUAGE UndecidableInstances  #-}
 -- | Arrays of dynamic size.  The arrays are polymorphic in the underlying
 -- linear data structure used to store the actual values.
 module Data.Array.Internal.DynamicG(
@@ -43,16 +43,16 @@ module Data.Array.Internal.DynamicG(
   update,
   generate, iterateN, iota,
   ) where
-import Control.DeepSeq
-import Control.Monad(replicateM)
-import Data.Data(Data)
-import Data.List(sort)
-import GHC.Generics(Generic)
-import GHC.Stack
-import Test.QuickCheck hiding (generate)
-import Text.PrettyPrint.HughesPJClass hiding ((<>))
+import           Control.DeepSeq
+import           Control.Monad                  (replicateM)
+import           Data.Data                      (Data)
+import           Data.List                      (sort)
+import           GHC.Generics                   (Generic)
+import           GHC.Stack
+import           Test.QuickCheck                hiding (generate)
+import           Text.PrettyPrint.HughesPJClass hiding ((<>))
 
-import Data.Array.Internal
+import           Data.Array.Internal
 
 -- | Arrays stored in a /v/ with values of type /a/.
 type role Array representational nominal
@@ -126,7 +126,7 @@ toVector (A sh t) = toVectorT sh t
 {-# INLINE fromList #-}
 fromList :: (HasCallStack, Vector v, VecElem v a) => ShapeL -> [a] -> Array v a
 fromList ss vs | n /= l = error $ "fromList: size mismatch " ++ show (n, l)
-               | otherwise = A ss $ T st 0 $ vFromList vs
+               | otherwise = A ss $ T st 0 $ vFromListN l vs
   where n : st = getStridesT ss
         l = length vs
 
@@ -190,7 +190,7 @@ scalar = A [] . scalarT
 {-# INLINE unScalar #-}
 unScalar :: (HasCallStack, Vector v, VecElem v a) => Array v a -> a
 unScalar (A [] t) = unScalarT t
-unScalar _ = error "unScalar: not a scalar"
+unScalar _        = error "unScalar: not a scalar"
 
 -- | Make an array with all elements having the same value.
 -- O(1) time
@@ -330,8 +330,8 @@ window aws (A ash (T ss o v)) = A (win aws ash) (T (ss' ++ ss) o v)
 stride :: (HasCallStack, Vector v) => [Int] -> Array v a -> Array v a
 stride ats (A ash (T ss o v)) = A (str ats ash) (T (zipWith (*) (ats ++ repeat 1) ss) o v)
   where str (t:ts) (s:sh) = (s+t-1) `quot` t : str ts sh
-        str [] sh = sh
-        str _ _ = error $ "stride: rank mismatch " ++ show (ats, ash)
+        str [] sh         = sh
+        str _ _           = error $ "stride: rank mismatch " ++ show (ats, ash)
 
 -- | Rotate the array k times along the d'th dimension.
 -- E.g., if the array shape is @[2, 3, 2]@, d is 1, and k is 4,
@@ -490,7 +490,7 @@ broadcast ds sh a | length ds /= rank a = error "broadcast: wrong number of broa
   where r = length sh
         rsh = [ if i `elem` ds then s else 1 | (i, s) <- zip [0..] sh ]
         ascending (x:y:ys) = x < y && ascending (y:ys)
-        ascending _ = True
+        ascending _        = True
 
 -- | Update the array at the specified indicies to the associated value.
 update :: (HasCallStack, Vector v, VecElem v a) =>
