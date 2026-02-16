@@ -10,4 +10,8 @@
 
 #### 0.1.1.0
 
-- Remove toArrayG function and add some documentation.
+- Remove toArrayG function and add some documentation
+
+#### 0.1.8.0
+
+- Various bugfixes, speedups and the new internal operations toVectorListT and toUnorderedVectorListT
